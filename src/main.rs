@@ -75,7 +75,7 @@ async fn test_post(Form(input): Form<TestInput>) -> Html<String> {
     Html(template.render().expect("Failed to render test template"))
 }
 
-/// Handles POST requests to the `/posts` route by creating a new post and returning a success message.
+/// Handles POST requests to the `/posts` route by creating a new post and returning the post as HTML.
 ///
 /// # Examples
 ///
@@ -89,7 +89,16 @@ async fn post_post(Form(input): Form<NewPost>) -> Result<Html<String>, StatusCod
         &input.title,
         &input.body,
     ) {
-        Some(_) => Ok(Html("Post created successfully".to_string())),
+        Some(post) => {
+            let html = format!(
+                r#"<li class="border-b pb-4">
+                    <h2 class="text-xl font-semibold text-gray-700">{}</h2>
+                    <p class="text-gray-500">{}</p>
+                </li>"#,
+                post.title, post.body
+            );
+            Ok(Html(html))
+        }
         None => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
 }

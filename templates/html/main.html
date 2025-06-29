@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="/static/tailwind.css" />
+    <script src="/static/htmx.min.js"></script>
     <title>Hello from z3 app</title>
   </head>
   <body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center">
@@ -17,7 +18,8 @@
       <form
         hx-post="/posts"
         hx-target="#posts-list"
-        hx-swap="beforebegin"
+        hx-swap="afterbegin"
+        hx-on::after-request="if(event.detail.successful) this.reset()"
         class="mb-6 space-y-4"
       >
         <div>
