@@ -84,6 +84,12 @@ async fn test_post(Form(input): Form<TestInput>) -> Html<String> {
 /// let app = axum::Router::new().route("/posts", post(post_post));
 /// ```
 async fn post_post(Form(input): Form<NewPost>) -> Result<Html<String>, StatusCode> {
+    println!("Received post input: {:?}", input);
+
+    if input.title.is_empty() || input.body.is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
+
     match Post::create(
         &mut db_utils::establish_connection(),
         &input.title,

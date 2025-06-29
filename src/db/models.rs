@@ -34,8 +34,12 @@ impl Post {
     }
 
     pub fn create(conn: &mut diesel::SqliteConnection, title: &str, body: &str) -> Option<Post> {
-        let new_post = NewPost { title: title.into(), body: body.into() };
-        let inserted_post = diesel::insert_into(crate::db::schema::posts::table)
+        let new_post: NewPost = NewPost {
+            title: title.to_string(),
+            body: body.to_string(),
+        }; // Set published
+        println!("Creating post: {:?}", new_post);
+        let inserted_post: Option<Post> = diesel::insert_into(crate::db::schema::posts::table)
             .values(&new_post)
             .returning(Post::as_returning())
             .get_result(conn)
