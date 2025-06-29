@@ -1,12 +1,11 @@
 use askama::Template;
-use axum::{Router, extract::Form, response::Html, routing::get};
-use diesel::prelude::*;
+use axum::http::StatusCode;
+use axum::{Router, extract::Form, response::Html, routing::get, routing::post};
 use serde::Deserialize;
 use std::net::SocketAddr;
 use tower_http::services::ServeDir;
 use z3_app::db::db_utils;
 use z3_app::db::models::{NewPost, Post};
-use z3_app::db::schema::{self, posts};
 use z3_app::templates::{main::MainTemplate, test::TestTemplate};
 
 /// Launches the Axum web server with HTML template rendering and static file serving.
@@ -24,8 +23,8 @@ use z3_app::templates::{main::MainTemplate, test::TestTemplate};
 async fn main() {
     let app = Router::new()
         .route("/", get(root))
-        .route("/test", get(test))
-        .route("/test", axum::routing::post(test_post))
+        .route("/test", post(test_post))
+        .route("/posts", post(post_post))
         .nest_service("/static", ServeDir::new("static"));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
@@ -36,23 +35,6 @@ async fn main() {
         eprintln!("Server error: {}", e);
         std::process::exit(1);
     }
-}
-
-/// Handles GET requests to the `/test` route by rendering the `TestTemplate` with a fixed message.
-///
-/// Returns an HTML response containing the rendered template.
-///
-/// # Examples
-///
-/// ```
-// In an Axum application, this handler can be used as follows:
-/// let app = Router::new().route("/test", axum::routing::get(test));
-/// ```
-async fn test() -> Html<String> {
-    let template: TestTemplate<'_> = TestTemplate {
-        test: "Hello, world!",
-    };
-    Html(template.render().expect("Failed to render test template"))
 }
 
 /// Handles requests to the root path by rendering the main HTML template.
@@ -68,7 +50,7 @@ async fn test() -> Html<String> {
 /// ```
 async fn root() -> Html<String> {
     let template: MainTemplate = MainTemplate {
-        posts: get_posts().await,
+        posts: Post::get_published().await,
     };
     Html(template.render().unwrap())
 }
@@ -93,28 +75,21 @@ async fn test_post(Form(input): Form<TestInput>) -> Html<String> {
     Html(template.render().expect("Failed to render test template"))
 }
 
-async fn get_posts() -> Vec<Post> {
-    use schema::posts::dsl::*;
-
-    let connection: &mut SqliteConnection = &mut db_utils::establish_connection();
-    let results: Vec<Post> = posts
-        .filter(diesel::ExpressionMethods::eq(published, true))
-        .limit(5)
-        .select(Post::as_select())
-        .load(connection)
-        .expect("Error loading posts");
-
-    println!("Displaying {} posts", results.len());
-
-    results
-}
-
-pub fn create_post(conn: &mut SqliteConnection, title: &str, body: &str) -> Post {
-    let new_post = NewPost { title, body };
-
-    diesel::insert_into(posts::table)
-        .values(&new_post)
-        .returning(Post::as_returning())
-        .get_result(conn)
-        .expect("Error saving new post")
+/// Handles POST requests to the `/posts` route by creating a new post and returning a success message.
+///
+/// # Examples
+///
+/// ```
+/// // In an Axum application, this handler can be used as follows:
+/// let app = axum::Router::new().route("/posts", post(post_post));
+/// ```
+async fn post_post(Form(input): Form<NewPost>) -> Result<Html<String>, StatusCode> {
+    match Post::create(
+        &mut db_utils::establish_connection(),
+        &input.title,
+        &input.body,
+    ) {
+        Some(_) => Ok(Html("Post created successfully".to_string())),
+        None => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
