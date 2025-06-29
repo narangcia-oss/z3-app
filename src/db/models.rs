@@ -16,6 +16,7 @@ pub struct Post {
 pub struct NewPost {
     pub title: String,
     pub body: String,
+    pub published: bool,
 }
 
 impl Post {
@@ -34,10 +35,11 @@ impl Post {
     }
 
     pub fn create(conn: &mut diesel::PgConnection, title: &str, body: &str) -> Option<Post> {
-        let new_post: NewPost = NewPost {
-            title: title.to_string(),
-            body: body.to_string(),
-        }; // Set published
+        let new_post: NewPost = NewPost::new(
+            title.to_string(),
+            body.to_string(),
+            true,
+        );
         println!("Creating post: {:?}", new_post);
         let inserted_post: Option<Post> = diesel::insert_into(crate::db::schema::posts::table)
             .values(&new_post)
@@ -47,4 +49,11 @@ impl Post {
         println!("Inserted post: {:?}", inserted_post);
         inserted_post
     }
+}
+
+impl NewPost {
+    pub fn new(title: String, body: String, published: bool) -> Self {
+        NewPost { title, body, published }
+    }
+
 }
