@@ -3,7 +3,7 @@ use serde::Deserialize;
 
 #[derive(Queryable, Selectable, Debug, Clone, Deserialize)]
 #[diesel(table_name = crate::db::schema::posts)]
-#[diesel(check_for_backend(diesel::sqlite::Sqlite))]
+#[diesel(check_for_backend(diesel::pg::Pg))]
 pub struct Post {
     pub id: i32,
     pub title: String,
@@ -21,7 +21,7 @@ pub struct NewPost {
 impl Post {
     pub async fn get_published() -> Vec<Post> {
         use crate::db::schema::posts::dsl::*;
-        let connection: &mut diesel::SqliteConnection =
+        let connection: &mut diesel::PgConnection =
             &mut crate::db::db_utils::establish_connection();
         let results: Vec<Post> = posts
             .filter(diesel::ExpressionMethods::eq(published, true))
@@ -33,7 +33,7 @@ impl Post {
         results
     }
 
-    pub fn create(conn: &mut diesel::SqliteConnection, title: &str, body: &str) -> Option<Post> {
+    pub fn create(conn: &mut diesel::PgConnection, title: &str, body: &str) -> Option<Post> {
         let new_post: NewPost = NewPost {
             title: title.to_string(),
             body: body.to_string(),

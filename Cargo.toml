@@ -7,11 +7,7 @@ edition = "2024"
 [dependencies]
 axum = "0.8.4"
 tokio = { version = "1.45.1", features = ["full"] }
-diesel = { version = "2.2.11", features = [
-  "sqlite",
-  "r2d2",
-  "returning_clauses_for_sqlite_3_35",
-] }
+diesel = { version = "2.2.11", features = ["postgres"] }
 libsql = { version = "0.9.11", features = ["remote"] }
 dotenvy = "0.15.7"
 tracing = "0.1.41"
