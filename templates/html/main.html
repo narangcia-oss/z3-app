@@ -14,6 +14,14 @@
       <p class="text-center text-gray-600 mb-6">
         Welcome! This is a simple page served by the z3 stack.
       </p>
+      <ul class="space-y-4">
+        {% for post in posts %}
+          <li class="border-b pb-4">
+            <h2 class="text-xl font-semibold text-gray-700">{{ post.title }}</h2>
+            <p class="text-gray-500">{{ post.body }}</p>
+          </li>
+        {% endfor %}
+      </ul>
     </div>
   </body>
 </html>
