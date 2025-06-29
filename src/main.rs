@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use tower_http::services::ServeDir;
 use z3_app::db::db_utils;
 use z3_app::db::models::{NewPost, Post};
-use z3_app::templates::main::MainTemplate;
+use z3_app::templates::templates_defs::{MainTemplate};
 
 /// Launches the Axum web server with HTML template rendering and static file serving.
 ///
