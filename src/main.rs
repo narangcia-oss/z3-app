@@ -1,10 +1,13 @@
 use askama::Template;
 use axum::{Router, extract::Form, response::Html, routing::get};
-use z3_app::templates::{main::MainTemplate, test::TestTemplate};
+use diesel::prelude::*;
 use serde::Deserialize;
 use std::net::SocketAddr;
 use tower_http::services::ServeDir;
-use diesel::prelude::*;
+use z3_app::db::db_utils;
+use z3_app::db::models::{NewPost, Post};
+use z3_app::db::schema::{self, posts};
+use z3_app::templates::{main::MainTemplate, test::TestTemplate};
 
 /// Launches the Axum web server with HTML template rendering and static file serving.
 ///
@@ -64,7 +67,9 @@ async fn test() -> Html<String> {
 /// assert!(response.0.contains("<html"));
 /// ```
 async fn root() -> Html<String> {
-    let template: MainTemplate = MainTemplate { posts: get_posts().await };
+    let template: MainTemplate = MainTemplate {
+        posts: get_posts().await,
+    };
     Html(template.render().unwrap())
 }
 
@@ -88,18 +93,28 @@ async fn test_post(Form(input): Form<TestInput>) -> Html<String> {
     Html(template.render().expect("Failed to render test template"))
 }
 
-async fn get_posts() -> Vec<z3_app::db::models::Post> {
-    use z3_app::db::schema::posts::dsl::*;
+async fn get_posts() -> Vec<Post> {
+    use schema::posts::dsl::*;
 
-    let connection: &mut SqliteConnection = &mut z3_app::db::db_utils::establish_connection();
-    let results: Vec<z3_app::db::models::Post> = posts
+    let connection: &mut SqliteConnection = &mut db_utils::establish_connection();
+    let results: Vec<Post> = posts
         .filter(diesel::ExpressionMethods::eq(published, true))
         .limit(5)
-        .select(z3_app::db::models::Post::as_select())
+        .select(Post::as_select())
         .load(connection)
         .expect("Error loading posts");
 
     println!("Displaying {} posts", results.len());
 
     results
+}
+
+pub fn create_post(conn: &mut SqliteConnection, title: &str, body: &str) -> Post {
+    let new_post = NewPost { title, body };
+
+    diesel::insert_into(posts::table)
+        .values(&new_post)
+        .returning(Post::as_returning())
+        .get_result(conn)
+        .expect("Error saving new post")
 }
