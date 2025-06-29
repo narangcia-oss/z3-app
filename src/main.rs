@@ -4,6 +4,7 @@ use z3_app::templates::{main::MainTemplate, test::TestTemplate};
 use serde::Deserialize;
 use std::net::SocketAddr;
 use tower_http::services::ServeDir;
+use diesel::prelude::*;
 
 /// Launches the Axum web server with HTML template rendering and static file serving.
 ///
@@ -87,22 +88,18 @@ async fn test_post(Form(input): Form<TestInput>) -> Html<String> {
     Html(template.render().expect("Failed to render test template"))
 }
 
-async fn get_posts() -> Html<String> {
+async fn get_posts() -> Vec<z3_app::db::models::Post> {
     use z3_app::db::schema::posts::dsl::*;
 
-    let connection = &mut establish_connection();
-    let results = posts
-        .filter(published.eq(true))
+    let connection: &mut SqliteConnection = &mut z3_app::db::db_utils::establish_connection();
+    let results: Vec<z3_app::db::models::Post> = posts
+        .filter(diesel::ExpressionMethods::eq(published, true))
         .limit(5)
-        .select(Post::as_select())
+        .select(z3_app::db::models::Post::as_select())
         .load(connection)
         .expect("Error loading posts");
 
     println!("Displaying {} posts", results.len());
-    for post in results {
-    }
-    // Placeholder for fetching posts from the database
-    let posts = vec![]; // This should be replaced with actual database logic
-    let template = MainTemplate { posts: &posts };
-    Html(template.render().expect("Failed to render main template"))
+
+    results
 }
