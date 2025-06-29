@@ -16,7 +16,12 @@ pub struct Post {
 pub struct NewPost {
     pub title: String,
     pub body: String,
-    pub published: bool,
+    #[serde(default = "default_published")]
+    pub published: Option<bool>,
+}
+
+fn default_published() -> Option<bool> {
+    Some(true)
 }
 
 impl Post {
@@ -35,25 +40,31 @@ impl Post {
     }
 
     pub fn create(conn: &mut diesel::PgConnection, title: &str, body: &str) -> Option<Post> {
-        let new_post: NewPost = NewPost::new(
-            title.to_string(),
-            body.to_string(),
-            true,
-        );
+        let new_post: NewPost = NewPost::new(title.to_string(), body.to_string(), Some(true));
         println!("Creating post: {:?}", new_post);
-        let inserted_post: Option<Post> = diesel::insert_into(crate::db::schema::posts::table)
+        let result = diesel::insert_into(crate::db::schema::posts::table)
             .values(&new_post)
             .returning(Post::as_returning())
-            .get_result(conn)
-            .ok();
-        println!("Inserted post: {:?}", inserted_post);
-        inserted_post
+            .get_result(conn);
+        match result {
+            Ok(post) => {
+                println!("Inserted post: {:?}", post);
+                Some(post)
+            }
+            Err(e) => {
+                println!("Diesel insert error: {}", e);
+                None
+            }
+        }
     }
 }
 
 impl NewPost {
-    pub fn new(title: String, body: String, published: bool) -> Self {
-        NewPost { title, body, published }
+    pub fn new(title: String, body: String, published: Option<bool>) -> Self {
+        NewPost {
+            title,
+            body,
+            published,
+        }
     }
-
 }
