@@ -1,12 +1,11 @@
 use askama::Template;
 use axum::http::StatusCode;
 use axum::{Router, extract::Form, response::Html, routing::get, routing::post};
-use serde::Deserialize;
 use std::net::SocketAddr;
 use tower_http::services::ServeDir;
 use z3_app::db::db_utils;
 use z3_app::db::models::{NewPost, Post};
-use z3_app::templates::{main::MainTemplate, test::TestTemplate};
+use z3_app::templates::main::MainTemplate;
 
 /// Launches the Axum web server with HTML template rendering and static file serving.
 ///
@@ -23,7 +22,6 @@ use z3_app::templates::{main::MainTemplate, test::TestTemplate};
 async fn main() {
     let app = Router::new()
         .route("/", get(root))
-        .route("/test", post(test_post))
         .route("/posts", post(post_post))
         .nest_service("/static", ServeDir::new("static"));
 
@@ -53,26 +51,6 @@ async fn root() -> Html<String> {
         posts: Post::get_published().await,
     };
     Html(template.render().unwrap())
-}
-
-#[derive(Deserialize, Debug, Clone)]
-struct TestInput {
-    test_input: String,
-}
-
-/// Handles POST requests to the `/test` route by rendering the `TestTemplate` with a fixed message.
-///
-/// Returns an HTML response containing the rendered template.
-/// # Examples
-/// ```
-/// // In an Axum application, this handler can be used as follows:
-/// let app = axum::Router::new().route("/test", post(test_post));
-/// ```
-async fn test_post(Form(input): Form<TestInput>) -> Html<String> {
-    let template = TestTemplate {
-        test: &input.test_input,
-    };
-    Html(template.render().expect("Failed to render test template"))
 }
 
 /// Handles POST requests to the `/posts` route by creating a new post and returning the post as HTML.
