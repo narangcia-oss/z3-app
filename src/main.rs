@@ -22,6 +22,7 @@ use z3_app::templates::templates_defs::{MainTemplate, PostTemplate};
 async fn main() {
     let app = Router::new()
         .route("/", get(root))
+        .route("/posts", get(post_get))
         .route("/posts", post(post_post))
         .nest_service("/static", ServeDir::new("static"));
 
@@ -85,4 +86,25 @@ async fn post_post(Form(input): Form<NewPost>) -> Result<Html<String>, StatusCod
         }
         None => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
+}
+
+/// Handles GET requests to the `/posts` route by rendering a list of posts.
+///
+/// Returns multiple rendered `PostTemplate` as one HTML response.
+///
+/// # Examples
+/// /// ```
+/// // In an Axum application, this handler can be used as follows:
+/// let app = axum::Router::new().route("/posts", get(post_get));
+/// ```
+async fn post_get() -> Html<String> {
+    let posts: Vec<Post> = Post::get_published().await;
+    let mut html = String::new();
+
+    for post in posts {
+        let post_template: PostTemplate = PostTemplate { post };
+        html.push_str(&post_template.render().unwrap());
+    }
+
+    Html(html)
 }
