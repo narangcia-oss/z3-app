@@ -75,13 +75,8 @@ async fn post_post(Form(input): Form<NewPost>) -> Result<Html<String>, StatusCod
         &input.body,
     ) {
         Some(post) => {
-            let html = format!(
-                r#"<li class="border-b pb-4">
-                    <h2 class="text-xl font-semibold text-gray-700">{}</h2>
-                    <p class="text-gray-500">{}</p>
-                </li>"#,
-                post.title, post.body
-            );
+            let post_template = PostTemplate { post };
+            let html = post_template.render().unwrap();
             Ok(Html(html))
         }
         None => Err(StatusCode::INTERNAL_SERVER_ERROR),
