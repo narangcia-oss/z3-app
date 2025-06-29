@@ -1,0 +1,15 @@
+{
+  "name": "cosy-list",
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.11",
+    "prettier": "^3.6.2",
+    "tailwindcss": "^4.1.11"
+  },
+  "scripts": {
+    "dev:css": "npx @tailwindcss/cli -i ./static/input.css -o ./static/tailwind.css --watch",
+    "format": "prettier --write ./templates/**/*"
+  }
+}
