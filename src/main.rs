@@ -64,7 +64,7 @@ async fn test() -> Html<String> {
 /// assert!(response.0.contains("<html"));
 /// ```
 async fn root() -> Html<String> {
-    let template: MainTemplate = MainTemplate {};
+    let template: MainTemplate = MainTemplate { posts: get_posts().await };
     Html(template.render().unwrap())
 }
 
