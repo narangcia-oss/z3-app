@@ -1,3 +1,7 @@
+// After changing schema.rs, you need to run the migration command to apply changes.
+// diesel migration generate --diff-schema <migration_name>
+// diesel migration run
+
 use diesel::prelude::*;
 use serde::Deserialize;
 
