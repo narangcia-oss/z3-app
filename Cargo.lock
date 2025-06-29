@@ -454,24 +454,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
-name = "cosy-list"
-version = "0.1.0"
-dependencies = [
- "askama",
- "axum 0.8.4",
- "diesel",
- "dotenvy",
- "libsql",
- "once_cell",
- "serde",
- "serde_json",
- "tokio",
- "tower-http 0.6.6",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2753,6 +2735,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6f42320e61fe2cfd34354ecb597f86f413484a798ba44a8ca1165c58d42da6c1"
 dependencies = [
  "bitflags 2.9.1",
+]
+
+[[package]]
+name = "z3-app"
+version = "0.1.0"
+dependencies = [
+ "askama",
+ "axum 0.8.4",
+ "diesel",
+ "dotenvy",
+ "libsql",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower-http 0.6.6",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
