@@ -246,6 +246,28 @@ pub mod users {
         pub expires: chrono::NaiveDateTime,
     }
 
+    impl User {
+        /// Create a new user with the given username
+        pub fn create(
+            conn: &mut diesel::PgConnection,
+            username: String,
+        ) -> Result<User, diesel::result::Error> {
+            use crate::db::schema::users as users_table;
+
+            let new_user = (
+                users_table::username.eq(username),
+                users_table::created_at.eq(chrono::Utc::now().naive_utc()),
+                users_table::accounts.eq(1), // Default to 1 account
+                users_table::sessions.eq(None::<i32>),
+            );
+
+            diesel::insert_into(users_table::table)
+                .values(&new_user)
+                .returning(User::as_returning())
+                .get_result(conn)
+        }
+    }
+
     impl AuthUser for User {
         type Id = i32;
         fn id(&self) -> Self::Id {

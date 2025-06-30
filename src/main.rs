@@ -2,18 +2,17 @@ use askama::Template;
 use axum::http::StatusCode;
 use axum::{Extension, extract::State, response::Redirect};
 use axum::{Router, extract::Form, response::Html, routing::get, routing::post};
-use axum_login::tower_sessions::MemoryStore;
 use axum_login::AuthnBackend;
+use axum_login::tower_sessions::MemoryStore;
 use diesel::prelude::*;
 use password_auth::generate_hash;
 use serde::Deserialize;
 use std::net::SocketAddr;
 use tower_http::services::ServeDir;
 use z3_app::db::db_utils;
-use z3_app::db::models::users::{AuthSession, Backend, Credentials};
-use z3_app::db::models::
-    posts::{NewPost, Post}
-;
+use z3_app::db::models::accounts::Account;
+use z3_app::db::models::posts::{NewPost, Post};
+use z3_app::db::models::users::{AuthSession, Backend, Credentials, User};
 use z3_app::templates::templates_defs::{MainTemplate, PostTemplate};
 
 use axum_login::{AuthManagerLayerBuilder, tower_sessions::SessionManagerLayer};
@@ -67,11 +66,31 @@ async fn main() {
 /// let response = root().await;
 /// assert!(response.0.contains("<html"));
 /// ```
-async fn root() -> Html<String> {
+async fn root(Extension(session): Extension<AuthSession>) -> Html<String> {
+    let mut template_content = String::new();
+
+    // Add authentication status
+    if let Some(user) = &session.user {
+        template_content.push_str(&format!(
+            r#"<div style="margin-bottom: 20px;">
+                <p>Welcome, {}! <form method='post' action='/signout' style='display: inline;'><button type='submit'>Sign Out</button></form></p>
+            </div>"#,
+            user.username
+        ));
+    } else {
+        template_content.push_str(
+            r#"<div style="margin-bottom: 20px;">
+                <a href="/login">Login</a> | <a href="/signup">Sign Up</a>
+            </div>"#,
+        );
+    }
+
     let template: MainTemplate = MainTemplate {
         posts: Post::get_published().await,
     };
-    Html(template.render().unwrap())
+    template_content.push_str(&template.render().unwrap());
+
+    Html(template_content)
 }
 
 #[derive(Debug, Deserialize)]
@@ -88,18 +107,29 @@ pub struct PostForm {
 /// // In an Axum application, this handler can be used as follows:
 /// let app = axum::Router::new().route("/posts", post(post_post));
 /// ```
-async fn post_post(Form(input): Form<PostForm>) -> Result<Html<String>, StatusCode> {
+async fn post_post(
+    Extension(session): Extension<AuthSession>,
+    Form(input): Form<PostForm>,
+) -> Result<Html<String>, StatusCode> {
     println!("Received post input: {:?}", input);
 
     if input.title.is_empty() || input.body.is_empty() {
         return Err(StatusCode::BAD_REQUEST);
     }
 
+    // Get the current user
+    let user = session.user;
+    if user.is_none() {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    let user = user.unwrap();
+
     let new_post: NewPost = NewPost {
         title: input.title,
         body: input.body,
         published: Some(true),
-        author_id: None,
+        author_id: Some(user.id),
         created_at: chrono::Utc::now().naive_utc(),
     };
 
@@ -144,9 +174,9 @@ async fn post_get() -> Html<String> {
 async fn signup_form() -> Html<String> {
     Html(
         r#"<form method='post' action='/signup'>
-        <input name='username' placeholder='Username'/><br/>
-        <input name='email' placeholder='Email'/><br/>
-        <input name='password' type='password' placeholder='Password'/><br/>
+        <input name='username' placeholder='Username' required/><br/>
+        <input name='email' type='email' placeholder='Email' required/><br/>
+        <input name='password' type='password' placeholder='Password' required/><br/>
         <button type='submit'>Sign Up</button>
     </form>"#
             .to_string(),
@@ -158,17 +188,28 @@ async fn signup_form() -> Html<String> {
 async fn signup_post(Form(input): Form<SignupForm>) -> Result<Redirect, StatusCode> {
     let mut conn: PgConnection = db_utils::establish_connection();
     let hashed: String = generate_hash(&input.password);
-    let new_user = (
-        z3_app::db::schema::users::username.eq(&input.username),
-        z3_app::db::schema::users::password.eq(hashed),
-        z3_app::db::schema::users::email.eq(input.email.clone()),
-    );
-    let res = diesel::insert_into(z3_app::db::schema::users::table)
-        .values(&new_user)
-        .execute(&mut conn);
-    match res {
-        Ok(_) => Ok(Redirect::to("/login")),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+
+    // Create user first
+    let user_result = User::create(&mut conn, input.username);
+
+    match user_result {
+        Ok(user) => {
+            // Create associated email account
+            let account_result =
+                Account::create_email_account(&mut conn, user.id, input.email, hashed);
+
+            match account_result {
+                Ok(_) => Ok(Redirect::to("/login")),
+                Err(e) => {
+                    println!("Failed to create account: {}", e);
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
+            }
+        }
+        Err(e) => {
+            println!("Failed to create user: {}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }
 
@@ -176,7 +217,7 @@ async fn signup_post(Form(input): Form<SignupForm>) -> Result<Redirect, StatusCo
 async fn login_form() -> Html<String> {
     Html(
         r#"<form method='post' action='/login'>
-        <input name='username' placeholder='Username'/><br/>
+        <input name='email' placeholder='Email'/><br/>
         <input name='password' type='password' placeholder='Password'/><br/>
         <button type='submit'>Login</button>
     </form>"#
@@ -210,5 +251,5 @@ async fn signout_post(Extension(mut session): Extension<AuthSession>) -> Redirec
 pub struct SignupForm {
     pub username: String,
     pub password: String,
-    pub email: Option<String>,
+    pub email: String, // Make email required
 }
