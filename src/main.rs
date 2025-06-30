@@ -25,7 +25,8 @@ use z3_app::{
         },
     },
     templates::templates_defs::{
-        LoginFormTemplate, MainTemplate, PostTemplate, SignupFormTemplate, WelcomeTemplate,
+        ErrorMessageTemplate, LoginFormTemplate, MainTemplate, PostTemplate, RedirectTemplate,
+        SignupFormTemplate, SignupSuccessTemplate, UserHeaderTemplate, WelcomeTemplate,
     },
 };
 
@@ -85,15 +86,10 @@ async fn root(Extension(session): Extension<AuthSession>) -> Html<String> {
         let template: MainTemplate = MainTemplate {
             posts: Post::get_published().await,
         };
-        let mut template_content = format!(
-            r#"<div class="mb-4 p-4 bg-blue-50 rounded">
-                <p class="text-blue-800">Welcome, {}!
-                <form method='post' action='/signout' style='display: inline;'>
-                    <button type='submit' class="ml-2 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">Sign Out</button>
-                </form></p>
-            </div>"#,
-            user.username
-        );
+        let user_header = UserHeaderTemplate {
+            username: user.username.clone(),
+        };
+        let mut template_content = user_header.render().unwrap();
         template_content.push_str(&template.render().unwrap());
         Html(template_content)
     } else {
@@ -207,16 +203,26 @@ async fn signup_post(Form(input): Form<SignupForm>) -> Result<Html<String>, Stat
                 Account::create_email_account(&mut conn, user.id, input.email, hashed);
 
             match account_result {
-                Ok(_) => Ok(Html(r#"<div class="p-3 bg-green-100 border border-green-400 text-green-700 rounded">Account created successfully! <a href="/login" class="underline">Login here</a></div>"#.to_string())),
+                Ok(_) => {
+                    let success_template = SignupSuccessTemplate {};
+                    Ok(Html(success_template.render().unwrap()))
+                }
                 Err(e) => {
                     println!("Failed to create account: {}", e);
-                    Ok(Html(r#"<div class="p-3 bg-red-100 border border-red-400 text-red-700 rounded">Failed to create account. Email might already be in use.</div>"#.to_string()))
+                    let error_template = ErrorMessageTemplate {
+                        message: "Failed to create account. Email might already be in use."
+                            .to_string(),
+                    };
+                    Ok(Html(error_template.render().unwrap()))
                 }
             }
         }
         Err(e) => {
             println!("Failed to create user: {}", e);
-            Ok(Html(r#"<div class="p-3 bg-red-100 border border-red-400 text-red-700 rounded">Failed to create user. Username might already be taken.</div>"#.to_string()))
+            let error_template = ErrorMessageTemplate {
+                message: "Failed to create user. Username might already be taken.".to_string(),
+            };
+            Ok(Html(error_template.render().unwrap()))
         }
     }
 }
@@ -237,9 +243,17 @@ async fn login_post(
     match backend.authenticate(input.clone()).await {
         Ok(Some(user)) => {
             session.login(&user).await.unwrap();
-            Ok(Html(r#"<script>window.location.href = "/";</script>"#.to_string()))
+            let redirect_template = RedirectTemplate {
+                redirect_url: "/".to_string(),
+            };
+            Ok(Html(redirect_template.render().unwrap()))
         }
-        _ => Ok(Html(r#"<div class="p-3 bg-red-100 border border-red-400 text-red-700 rounded">Invalid email or password. Please try again.</div>"#.to_string())),
+        _ => {
+            let error_template = ErrorMessageTemplate {
+                message: "Invalid email or password. Please try again.".to_string(),
+            };
+            Ok(Html(error_template.render().unwrap()))
+        }
     }
 }
 
