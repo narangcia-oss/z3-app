@@ -95,7 +95,7 @@ async fn post_post(Form(input): Form<PostForm>) -> Result<Html<String>, StatusCo
         return Err(StatusCode::BAD_REQUEST);
     }
 
-    let new_post = NewPost {
+    let new_post: NewPost = NewPost {
         title: input.title,
         body: input.body,
         published: Some(true),
@@ -156,8 +156,8 @@ async fn signup_form() -> Html<String> {
 /// Handles signup POST, creates a new user
 #[axum::debug_handler]
 async fn signup_post(Form(input): Form<SignupForm>) -> Result<Redirect, StatusCode> {
-    let mut conn = db_utils::establish_connection();
-    let hashed = generate_hash(&input.password);
+    let mut conn: PgConnection = db_utils::establish_connection();
+    let hashed: String = generate_hash(&input.password);
     let new_user = (
         z3_app::db::schema::users::username.eq(&input.username),
         z3_app::db::schema::users::password.eq(hashed),
