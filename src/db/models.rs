@@ -211,8 +211,6 @@ pub mod users {
         pub id: i32,
         pub username: String,
         pub created_at: chrono::NaiveDateTime,
-        pub accounts: i32,
-        pub sessions: Option<i32>,
     }
 
     impl std::fmt::Debug for User {
@@ -221,8 +219,6 @@ pub mod users {
                 .field("id", &self.id)
                 .field("username", &self.username)
                 .field("created_at", &self.created_at)
-                .field("accounts", &self.accounts)
-                .field("sessions", &self.sessions)
                 .finish()
         }
     }
@@ -257,8 +253,6 @@ pub mod users {
             let new_user = (
                 users_table::username.eq(username),
                 users_table::created_at.eq(chrono::Utc::now().naive_utc()),
-                users_table::accounts.eq(1), // Default to 1 account
-                users_table::sessions.eq(None::<i32>),
             );
 
             diesel::insert_into(users_table::table)
