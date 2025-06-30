@@ -1,9 +1,16 @@
 use askama::Template;
 use axum::http::StatusCode;
+use axum::{Extension, extract::State, response::Redirect};
 use axum::{Router, extract::Form, response::Html, routing::get, routing::post};
+use axum_login::tower_sessions::MemoryStore;
+use axum_login::{AuthManagerLayer, AuthnBackend};
+use diesel::prelude::*;
+use password_auth::generate_hash;
+use serde::Deserialize;
 use std::net::SocketAddr;
 use tower_http::services::ServeDir;
 use z3_app::db::db_utils;
+use z3_app::db::models::users::{AuthSession, Backend, Credentials};
 use z3_app::db::models::{
     posts::{NewPost, Post},
     users::User,
@@ -23,11 +30,19 @@ use z3_app::templates::templates_defs::{MainTemplate, PostTemplate};
 /// ```
 #[tokio::main]
 async fn main() {
+    let backend = Backend::new();
+    let store = MemoryStore::default();
+    let auth_layer = AuthManagerLayer::new(backend.clone(), store, "some-secret-key");
     let app = Router::new()
         .route("/", get(root))
         .route("/posts", get(post_get))
         .route("/posts", post(post_post))
-        .nest_service("/static", ServeDir::new("static"));
+        .route("/signup", get(signup_form).post(signup_post))
+        .route("/login", get(login_form).post(login_post))
+        .route("/signout", post(signout_post))
+        .nest_service("/static", ServeDir::new("static"))
+        .layer(auth_layer)
+        .with_state(backend);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     println!("Listening on http://{}", addr);
@@ -105,4 +120,79 @@ async fn post_get() -> Html<String> {
     }
 
     Html(html)
+}
+
+/// Renders the signup form
+async fn signup_form() -> Html<String> {
+    Html(
+        r#"<form method='post' action='/signup'>
+        <input name='username' placeholder='Username'/><br/>
+        <input name='email' placeholder='Email'/><br/>
+        <input name='password' type='password' placeholder='Password'/><br/>
+        <button type='submit'>Sign Up</button>
+    </form>"#
+            .to_string(),
+    )
+}
+
+/// Handles signup POST, creates a new user
+#[axum::debug_handler]
+async fn signup_post(
+    Form(input): Form<SignupForm>,
+) -> Result<Redirect, StatusCode> {
+    let mut conn = db_utils::establish_connection();
+    let hashed = generate_hash(&input.password);
+    let new_user = (
+        z3_app::db::schema::users::username.eq(&input.username),
+        z3_app::db::schema::users::password.eq(hashed),
+        z3_app::db::schema::users::email.eq(input.email.clone()),
+    );
+    let res = diesel::insert_into(z3_app::db::schema::users::table)
+        .values(&new_user)
+        .execute(&mut conn);
+    match res {
+        Ok(_) => Ok(Redirect::to("/login")),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
+}
+
+/// Renders the login form
+async fn login_form() -> Html<String> {
+    Html(
+        r#"<form method='post' action='/login'>
+        <input name='username' placeholder='Username'/><br/>
+        <input name='password' type='password' placeholder='Password'/><br/>
+        <button type='submit'>Login</button>
+    </form>"#
+            .to_string(),
+    )
+}
+
+/// Handles login POST, authenticates user and starts session
+#[axum::debug_handler]
+async fn login_post(
+    Extension(mut session): Extension<AuthSession>,
+    State(backend): State<Backend>,
+    Form(input): Form<Credentials>,
+) -> Result<Redirect, StatusCode> {
+    match backend.authenticate(input.clone()).await {
+        Ok(Some(user)) => {
+            session.login(&user).await.unwrap();
+            Ok(Redirect::to("/"))
+        }
+        _ => Err(StatusCode::UNAUTHORIZED),
+    }
+}
+
+/// Handles signout POST, ends the session
+async fn signout_post(Extension(mut session): Extension<AuthSession>) -> Redirect {
+    session.logout().await;
+    Redirect::to("/")
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SignupForm {
+    pub username: String,
+    pub password: String,
+    pub email: Option<String>,
 }

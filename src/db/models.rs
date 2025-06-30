@@ -8,7 +8,6 @@
 /// diesel migration run
 /// ```
 /// Then i recommend properly making your models here
-
 pub mod posts {
     use diesel::prelude::*;
     use serde::Deserialize;
@@ -139,6 +138,12 @@ pub mod users {
             Self {
                 db: std::sync::Arc::new(tokio::sync::Mutex::new(db)),
             }
+        }
+    }
+
+    impl Default for Backend {
+        fn default() -> Self {
+            Self::new()
         }
     }
 
