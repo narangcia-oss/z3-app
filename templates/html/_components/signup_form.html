@@ -5,21 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="/static/tailwind.css" />
     <script src="/static/htmx.min.js"></script>
-    <title>Login - z3 app</title>
+    <title>Sign Up - z3 app</title>
   </head>
   <body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center">
     <div class="bg-white shadow-lg rounded-lg p-8 w-full max-w-md">
-      <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">Welcome Back</h1>
+      <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">Create Account</h1>
 
-      <div id="login-result" class="mb-4"></div>
+      <div id="signup-result" class="mb-4"></div>
 
       <form
-        hx-post="/login"
-        hx-target="#login-result"
+        hx-post="/signup"
+        hx-target="#signup-result"
         hx-swap="innerHTML"
         hx-indicator="#loading"
         class="space-y-4"
       >
+        <div>
+          <label for="username" class="block text-gray-700 font-semibold mb-1">Username</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+            placeholder="Enter your username"
+          />
+        </div>
         <div>
           <label for="email" class="block text-gray-700 font-semibold mb-1">Email</label>
           <input
@@ -44,16 +55,16 @@
         </div>
         <button
           type="submit"
-          class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition"
+          class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition"
         >
-          <span id="loading" class="htmx-indicator">Signing in...</span>
-          <span class="htmx-hide">Login</span>
+          <span id="loading" class="htmx-indicator">Creating account...</span>
+          <span class="htmx-hide">Sign Up</span>
         </button>
       </form>
 
       <div class="mt-6 text-center">
-        <p class="text-gray-600">Don't have an account?</p>
-        <a href="/signup" class="text-green-500 hover:text-green-600 font-semibold">Sign up here</a>
+        <p class="text-gray-600">Already have an account?</p>
+        <a href="/login" class="text-blue-500 hover:text-blue-600 font-semibold">Login here</a>
       </div>
       <div class="mt-4 text-center">
         <a href="/" class="text-gray-500 hover:text-gray-600">← Back to home</a>
