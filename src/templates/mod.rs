@@ -1,5 +1,3 @@
-pub mod templates_defs;
-
 use askama::Template;
 
 #[derive(Template)]
