@@ -4,7 +4,10 @@ use axum::{Router, extract::Form, response::Html, routing::get, routing::post};
 use std::net::SocketAddr;
 use tower_http::services::ServeDir;
 use z3_app::db::db_utils;
-use z3_app::db::models::{NewPost, Post};
+use z3_app::db::models::{
+    posts::{NewPost, Post},
+    users::User,
+};
 use z3_app::templates::templates_defs::{MainTemplate, PostTemplate};
 
 /// Launches the Axum web server with HTML template rendering and static file serving.
