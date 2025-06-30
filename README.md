@@ -39,7 +39,7 @@ Make sure you have the following installed:
 #### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/z3-app.git
+git clone https://github.com/ZiedYousfi/z3-app.git
 cd z3-app
 ```
 
@@ -86,7 +86,7 @@ diesel migration run
 
 The tools and libraries used in this project were all chosen for their extensive documentation. Here are some useful links to get you started:
 
-- [Rust](https://www.rust-lang.org/docs)
+- [Rust](https://www.rust-lang.org/learn)
 - [HTMX](https://htmx.org/docs/)
 - [Axum](https://docs.rs/axum/latest/axum/)
 - [Askama](https://docs.rs/askama/latest/askama/)
