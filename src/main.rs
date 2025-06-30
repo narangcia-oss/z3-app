@@ -3,7 +3,7 @@ use axum::http::StatusCode;
 use axum::{Extension, extract::State, response::Redirect};
 use axum::{Router, extract::Form, response::Html, routing::get, routing::post};
 use axum_login::tower_sessions::MemoryStore;
-use axum_login::{AuthManagerLayer, AuthnBackend};
+use axum_login::AuthnBackend;
 use diesel::prelude::*;
 use password_auth::generate_hash;
 use serde::Deserialize;
@@ -11,16 +11,12 @@ use std::net::SocketAddr;
 use tower_http::services::ServeDir;
 use z3_app::db::db_utils;
 use z3_app::db::models::users::{AuthSession, Backend, Credentials};
-use z3_app::db::models::{
-    posts::{NewPost, Post},
-    users::User,
-};
+use z3_app::db::models::
+    posts::{NewPost, Post}
+;
 use z3_app::templates::templates_defs::{MainTemplate, PostTemplate};
 
-use axum_login::{
-    AuthManagerLayerBuilder, login_required,
-    tower_sessions::SessionManagerLayer,
-};
+use axum_login::{AuthManagerLayerBuilder, tower_sessions::SessionManagerLayer};
 
 /// Launches the Axum web server with HTML template rendering and static file serving.
 ///
@@ -78,6 +74,12 @@ async fn root() -> Html<String> {
     Html(template.render().unwrap())
 }
 
+#[derive(Debug, Deserialize)]
+pub struct PostForm {
+    pub title: String,
+    pub body: String,
+}
+
 /// Handles POST requests to the `/posts` route by creating a new post and returning the post as HTML.
 ///
 /// # Examples
@@ -86,19 +88,27 @@ async fn root() -> Html<String> {
 /// // In an Axum application, this handler can be used as follows:
 /// let app = axum::Router::new().route("/posts", post(post_post));
 /// ```
-async fn post_post(Form(input): Form<NewPost>) -> Result<Html<String>, StatusCode> {
+async fn post_post(Form(input): Form<PostForm>) -> Result<Html<String>, StatusCode> {
     println!("Received post input: {:?}", input);
 
     if input.title.is_empty() || input.body.is_empty() {
         return Err(StatusCode::BAD_REQUEST);
     }
 
+    let new_post = NewPost {
+        title: input.title,
+        body: input.body,
+        published: Some(true),
+        author_id: None,
+        created_at: chrono::Utc::now().naive_utc(),
+    };
+
     match Post::create(
         &mut db_utils::establish_connection(),
-        &input.title,
-        &input.body,
-        &input.author_id,
-        input.created_at,
+        &new_post.title,
+        &new_post.body,
+        &new_post.author_id,
+        new_post.created_at,
     ) {
         Some(post) => {
             let post_template = PostTemplate { post };

@@ -12,7 +12,7 @@ pub mod posts {
     use diesel::prelude::*;
     use serde::Deserialize;
 
-    use crate::db::schema::posts::created_at;
+
 
     #[derive(Queryable, Selectable, Debug, Clone, Deserialize)]
     #[diesel(table_name = crate::db::schema::posts)]
