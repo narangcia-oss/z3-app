@@ -12,8 +12,6 @@ pub mod posts {
     use diesel::prelude::*;
     use serde::Deserialize;
 
-
-
     #[derive(Queryable, Selectable, Debug, Clone, Deserialize)]
     #[diesel(table_name = crate::db::schema::posts)]
     #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -63,8 +61,13 @@ pub mod posts {
             author_id: &Option<i32>,
             created_at_value: chrono::NaiveDateTime,
         ) -> Option<Post> {
-            let new_post: NewPost =
-                NewPost::new(title.to_string(), body.to_string(), Some(true), *author_id, created_at_value);
+            let new_post: NewPost = NewPost::new(
+                title.to_string(),
+                body.to_string(),
+                Some(true),
+                *author_id,
+                created_at_value,
+            );
             println!("Creating post: {:?}", new_post);
             let result = diesel::insert_into(crate::db::schema::posts::table)
                 .values(&new_post)
@@ -102,8 +105,96 @@ pub mod posts {
     }
 }
 
+pub mod accounts {
+    use crate::db::schema::accounts;
+    use diesel::prelude::*;
+    use serde::{Deserialize, Serialize};
+
+    /// Account model for handling authentication.
+    ///
+    /// The `type_` field determines the authentication method:
+    /// - "email" for email/password authentication
+    /// - "oauth" for OAuth providers (TODO: implement OAuth support)
+    ///
+    /// For email authentication: email and password fields are used
+    /// For OAuth authentication: provider, provider_account_id, and token fields are used
+    #[derive(Queryable, Selectable, Clone, Serialize, Deserialize, Debug)]
+    #[diesel(table_name = accounts)]
+    #[diesel(check_for_backend(diesel::pg::Pg))]
+    pub struct Account {
+        pub id: i32,
+        pub user_id: i32,
+        /// Authentication type: "email" for email/password, "oauth" for OAuth (TODO)
+        pub type_: String,
+
+        // Email/password authentication fields
+        pub email: Option<String>,
+        pub password: Option<String>,
+
+        // OAuth authentication fields (TODO: implement OAuth support)
+        pub provider: Option<String>,
+        pub provider_account_id: Option<String>,
+        pub refresh_token: Option<String>,
+        pub access_token: Option<String>,
+        pub expires_at: Option<i32>,
+        pub token_type: Option<String>,
+        pub scope: Option<String>,
+        pub id_token: Option<String>,
+        pub session_state: Option<String>,
+        pub refresh_token_expires_in: Option<i32>,
+    }
+
+    #[derive(Insertable, Debug, Clone)]
+    #[diesel(table_name = accounts)]
+    pub struct NewAccount {
+        pub user_id: i32,
+        pub type_: String,
+        pub email: Option<String>,
+        pub password: Option<String>,
+        pub provider: Option<String>,
+        pub provider_account_id: Option<String>,
+    }
+
+    impl Account {
+        /// Create a new email/password account
+        pub fn create_email_account(
+            conn: &mut diesel::PgConnection,
+            user_id: i32,
+            email: String,
+            password_hash: String,
+        ) -> Result<Account, diesel::result::Error> {
+            let new_account = NewAccount {
+                user_id,
+                type_: "email".to_string(),
+                email: Some(email),
+                password: Some(password_hash),
+                provider: None,
+                provider_account_id: None,
+            };
+
+            diesel::insert_into(accounts::table)
+                .values(&new_account)
+                .returning(Account::as_returning())
+                .get_result(conn)
+        }
+
+        /// Find account by email for authentication
+        pub fn find_by_email(
+            conn: &mut diesel::PgConnection,
+            email: &str,
+        ) -> Result<Account, diesel::result::Error> {
+            accounts::table
+                .filter(accounts::email.eq(email))
+                .filter(accounts::type_.eq("email"))
+                .select(Account::as_select())
+                .first(conn)
+        }
+    }
+}
+
 pub mod users {
-    use crate::db::schema::users as users_table;
+    use super::accounts::Account;
+    use crate::db::schema::{sessions, users as users_table, verification_tokens};
     use async_trait::async_trait;
     use axum_login::{AuthUser, AuthnBackend, UserId};
     use diesel::prelude::*;
@@ -111,14 +202,15 @@ pub mod users {
     use serde::{Deserialize, Serialize};
     use tokio::task;
 
+    /// Core user entity containing basic user information.
+    /// Authentication is handled separately through the accounts system.
     #[derive(Queryable, Selectable, Clone, Serialize, Deserialize)]
     #[diesel(table_name = users_table)]
     #[diesel(check_for_backend(diesel::pg::Pg))]
     pub struct User {
         pub id: i32,
         pub username: String,
-        pub password: String,
-        pub email: Option<String>,
+        pub created_at: chrono::NaiveDateTime,
     }
 
     impl std::fmt::Debug for User {
@@ -126,8 +218,47 @@ pub mod users {
             f.debug_struct("User")
                 .field("id", &self.id)
                 .field("username", &self.username)
-                .field("password", &"[redacted]")
+                .field("created_at", &self.created_at)
                 .finish()
+        }
+    }
+
+    #[derive(Queryable, Selectable, Clone, Serialize, Deserialize, Debug)]
+    #[diesel(table_name = sessions)]
+    #[diesel(check_for_backend(diesel::pg::Pg))]
+    pub struct Session {
+        pub id: String,
+        pub session_token: String,
+        pub user_id: i32,
+        pub expires: chrono::NaiveDateTime,
+    }
+
+    #[derive(Queryable, Selectable, Clone, Serialize, Deserialize, Debug)]
+    #[diesel(table_name = verification_tokens)]
+    #[diesel(check_for_backend(diesel::pg::Pg))]
+    pub struct VerificationToken {
+        pub identifier: String,
+        pub token: String,
+        pub expires: chrono::NaiveDateTime,
+    }
+
+    impl User {
+        /// Create a new user with the given username
+        pub fn create(
+            conn: &mut diesel::PgConnection,
+            username: String,
+        ) -> Result<User, diesel::result::Error> {
+            use crate::db::schema::users as users_table;
+
+            let new_user = (
+                users_table::username.eq(username),
+                users_table::created_at.eq(chrono::Utc::now().naive_utc()),
+            );
+
+            diesel::insert_into(users_table::table)
+                .values(&new_user)
+                .returning(User::as_returning())
+                .get_result(conn)
         }
     }
 
@@ -137,13 +268,13 @@ pub mod users {
             self.id
         }
         fn session_auth_hash(&self) -> &[u8] {
-            self.password.as_bytes()
+            self.username.as_bytes()
         }
     }
 
     #[derive(Debug, Clone, Deserialize, Serialize)]
     pub struct Credentials {
-        pub username: String,
+        pub email: String,
         pub password: String,
         pub next: Option<String>,
     }
@@ -187,23 +318,37 @@ pub mod users {
             creds: Self::Credentials,
         ) -> Result<Option<Self::User>, Self::Error> {
             let db = self.db.clone();
-            let username = creds.username.clone();
-            let user: Option<User> = task::spawn_blocking(move || {
+            let email = creds.email.clone();
+            let password = creds.password;
+
+            let user_and_account: Option<(User, Account)> = task::spawn_blocking(move || {
                 let mut conn = db.blocking_lock();
+
+                // Join users with their email/password accounts
                 users_table::table
-                    .filter(users_table::username.eq(&username))
-                    .select(User::as_select())
-                    .first::<User>(&mut *conn)
+                    .inner_join(
+                        crate::db::schema::accounts::table
+                            .on(crate::db::schema::accounts::user_id.eq(users_table::id)),
+                    )
+                    .filter(crate::db::schema::accounts::email.eq(&email))
+                    .filter(crate::db::schema::accounts::type_.eq("email"))
+                    .filter(crate::db::schema::accounts::password.is_not_null())
+                    .select((User::as_select(), Account::as_select()))
+                    .first::<(User, Account)>(&mut *conn)
                     .ok()
             })
             .await?;
 
-            let password = creds.password;
-            let valid = user
-                .as_ref()
-                .map(|u| verify_password(password.clone(), &u.password).is_ok())
-                .unwrap_or(false);
-            Ok(if valid { user } else { None })
+            if let Some((user, account)) = user_and_account {
+                if let Some(stored_password) = account.password {
+                    let valid = verify_password(password, &stored_password).is_ok();
+                    Ok(if valid { Some(user) } else { None })
+                } else {
+                    Ok(None)
+                }
+            } else {
+                Ok(None)
+            }
         }
 
         async fn get_user(

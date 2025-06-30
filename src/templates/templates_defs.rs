@@ -3,11 +3,23 @@ use askama::Template;
 #[derive(Template)]
 #[template(path = "html/main.html")]
 pub struct MainTemplate {
-  pub posts: Vec<crate::db::models::posts::Post>,
+    pub posts: Vec<crate::db::models::posts::Post>,
 }
 
 #[derive(Template)]
 #[template(path = "html/_components/post.html")]
 pub struct PostTemplate {
-  pub post: crate::db::models::posts::Post,
+    pub post: crate::db::models::posts::Post,
 }
+
+#[derive(Template)]
+#[template(path = "html/_components/login_form.html")]
+pub struct LoginFormTemplate {}
+
+#[derive(Template)]
+#[template(path = "html/_components/signup_form.html")]
+pub struct SignupFormTemplate {}
+
+#[derive(Template)]
+#[template(path = "html/_components/welcome.html")]
+pub struct WelcomeTemplate {}

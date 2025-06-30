@@ -1,20 +1,25 @@
 use askama::Template;
 use axum::http::StatusCode;
-use axum::{Extension, extract::State, response::Redirect};
-use axum::{Router, extract::Form, response::Html, routing::get, routing::post};
-use axum_login::tower_sessions::MemoryStore;
+use axum::{
+    Extension,
+    extract::State,
+    response::{Html, Redirect},
+};
+use axum::{Router, extract::Form, routing::get, routing::post};
 use axum_login::AuthnBackend;
+use axum_login::tower_sessions::MemoryStore;
 use diesel::prelude::*;
 use password_auth::generate_hash;
 use serde::Deserialize;
 use std::net::SocketAddr;
 use tower_http::services::ServeDir;
 use z3_app::db::db_utils;
-use z3_app::db::models::users::{AuthSession, Backend, Credentials};
-use z3_app::db::models::
-    posts::{NewPost, Post}
-;
-use z3_app::templates::templates_defs::{MainTemplate, PostTemplate};
+use z3_app::db::models::accounts::Account;
+use z3_app::db::models::posts::{NewPost, Post};
+use z3_app::db::models::users::{AuthSession, Backend, Credentials, User};
+use z3_app::templates::templates_defs::{
+    LoginFormTemplate, MainTemplate, PostTemplate, SignupFormTemplate, WelcomeTemplate,
+};
 
 use axum_login::{AuthManagerLayerBuilder, tower_sessions::SessionManagerLayer};
 
@@ -67,11 +72,28 @@ async fn main() {
 /// let response = root().await;
 /// assert!(response.0.contains("<html"));
 /// ```
-async fn root() -> Html<String> {
-    let template: MainTemplate = MainTemplate {
-        posts: Post::get_published().await,
-    };
-    Html(template.render().unwrap())
+async fn root(Extension(session): Extension<AuthSession>) -> Html<String> {
+    if let Some(user) = &session.user {
+        // User is authenticated - show the main app
+        let template: MainTemplate = MainTemplate {
+            posts: Post::get_published().await,
+        };
+        let mut template_content = format!(
+            r#"<div class="mb-4 p-4 bg-blue-50 rounded">
+                <p class="text-blue-800">Welcome, {}!
+                <form method='post' action='/signout' style='display: inline;'>
+                    <button type='submit' class="ml-2 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">Sign Out</button>
+                </form></p>
+            </div>"#,
+            user.username
+        );
+        template_content.push_str(&template.render().unwrap());
+        Html(template_content)
+    } else {
+        // User is not authenticated - show authentication options
+        let welcome_template = WelcomeTemplate {};
+        Html(welcome_template.render().unwrap())
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -88,18 +110,29 @@ pub struct PostForm {
 /// // In an Axum application, this handler can be used as follows:
 /// let app = axum::Router::new().route("/posts", post(post_post));
 /// ```
-async fn post_post(Form(input): Form<PostForm>) -> Result<Html<String>, StatusCode> {
+async fn post_post(
+    Extension(session): Extension<AuthSession>,
+    Form(input): Form<PostForm>,
+) -> Result<Html<String>, StatusCode> {
     println!("Received post input: {:?}", input);
 
     if input.title.is_empty() || input.body.is_empty() {
         return Err(StatusCode::BAD_REQUEST);
     }
 
+    // Get the current user
+    let user = session.user;
+    if user.is_none() {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    let user = user.unwrap();
+
     let new_post: NewPost = NewPost {
         title: input.title,
         body: input.body,
         published: Some(true),
-        author_id: None,
+        author_id: Some(user.id),
         created_at: chrono::Utc::now().naive_utc(),
     };
 
@@ -128,7 +161,12 @@ async fn post_post(Form(input): Form<PostForm>) -> Result<Html<String>, StatusCo
 /// // In an Axum application, this handler can be used as follows:
 /// let app = axum::Router::new().route("/posts", get(post_get));
 /// ```
-async fn post_get() -> Html<String> {
+async fn post_get(Extension(session): Extension<AuthSession>) -> Result<Html<String>, StatusCode> {
+    // Check if user is authenticated
+    if session.user.is_none() {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
     let posts: Vec<Post> = Post::get_published().await;
     let mut html = String::new();
 
@@ -137,51 +175,49 @@ async fn post_get() -> Html<String> {
         html.push_str(&post_template.render().unwrap());
     }
 
-    Html(html)
+    Ok(Html(html))
 }
 
 /// Renders the signup form
 async fn signup_form() -> Html<String> {
-    Html(
-        r#"<form method='post' action='/signup'>
-        <input name='username' placeholder='Username'/><br/>
-        <input name='email' placeholder='Email'/><br/>
-        <input name='password' type='password' placeholder='Password'/><br/>
-        <button type='submit'>Sign Up</button>
-    </form>"#
-            .to_string(),
-    )
+    let template = SignupFormTemplate {};
+    Html(template.render().unwrap())
 }
 
 /// Handles signup POST, creates a new user
 #[axum::debug_handler]
-async fn signup_post(Form(input): Form<SignupForm>) -> Result<Redirect, StatusCode> {
+async fn signup_post(Form(input): Form<SignupForm>) -> Result<Html<String>, StatusCode> {
     let mut conn: PgConnection = db_utils::establish_connection();
     let hashed: String = generate_hash(&input.password);
-    let new_user = (
-        z3_app::db::schema::users::username.eq(&input.username),
-        z3_app::db::schema::users::password.eq(hashed),
-        z3_app::db::schema::users::email.eq(input.email.clone()),
-    );
-    let res = diesel::insert_into(z3_app::db::schema::users::table)
-        .values(&new_user)
-        .execute(&mut conn);
-    match res {
-        Ok(_) => Ok(Redirect::to("/login")),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+
+    // Create user first
+    let user_result = User::create(&mut conn, input.username);
+
+    match user_result {
+        Ok(user) => {
+            // Create associated email account
+            let account_result =
+                Account::create_email_account(&mut conn, user.id, input.email, hashed);
+
+            match account_result {
+                Ok(_) => Ok(Html(r#"<div class="p-3 bg-green-100 border border-green-400 text-green-700 rounded">Account created successfully! <a href="/login" class="underline">Login here</a></div>"#.to_string())),
+                Err(e) => {
+                    println!("Failed to create account: {}", e);
+                    Ok(Html(r#"<div class="p-3 bg-red-100 border border-red-400 text-red-700 rounded">Failed to create account. Email might already be in use.</div>"#.to_string()))
+                }
+            }
+        }
+        Err(e) => {
+            println!("Failed to create user: {}", e);
+            Ok(Html(r#"<div class="p-3 bg-red-100 border border-red-400 text-red-700 rounded">Failed to create user. Username might already be taken.</div>"#.to_string()))
+        }
     }
 }
 
 /// Renders the login form
 async fn login_form() -> Html<String> {
-    Html(
-        r#"<form method='post' action='/login'>
-        <input name='username' placeholder='Username'/><br/>
-        <input name='password' type='password' placeholder='Password'/><br/>
-        <button type='submit'>Login</button>
-    </form>"#
-            .to_string(),
-    )
+    let template = LoginFormTemplate {};
+    Html(template.render().unwrap())
 }
 
 /// Handles login POST, authenticates user and starts session
@@ -190,13 +226,13 @@ async fn login_post(
     Extension(mut session): Extension<AuthSession>,
     State(backend): State<Backend>,
     Form(input): Form<Credentials>,
-) -> Result<Redirect, StatusCode> {
+) -> Result<Html<String>, StatusCode> {
     match backend.authenticate(input.clone()).await {
         Ok(Some(user)) => {
             session.login(&user).await.unwrap();
-            Ok(Redirect::to("/"))
+            Ok(Html(r#"<script>window.location.href = "/";</script>"#.to_string()))
         }
-        _ => Err(StatusCode::UNAUTHORIZED),
+        _ => Ok(Html(r#"<div class="p-3 bg-red-100 border border-red-400 text-red-700 rounded">Invalid email or password. Please try again.</div>"#.to_string())),
     }
 }
 
@@ -210,5 +246,5 @@ async fn signout_post(Extension(mut session): Extension<AuthSession>) -> Redirec
 pub struct SignupForm {
     pub username: String,
     pub password: String,
-    pub email: Option<String>,
+    pub email: String, // Make email required
 }
