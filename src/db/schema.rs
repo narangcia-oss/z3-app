@@ -18,7 +18,8 @@ diesel::table! {
         password -> Text,
         email -> Nullable<Text>,
         created_at -> Timestamp,
-
-        posts -> Array<Int4>,
     }
 }
+
+diesel::joinable!(posts -> users (author_id));
+diesel::allow_tables_to_appear_in_same_query!(posts, users);
