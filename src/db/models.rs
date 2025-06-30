@@ -20,7 +20,8 @@ pub mod posts {
         pub title: String,
         pub body: String,
         pub published: bool,
-        pub author_id: i32,
+        pub author_id: Option<i32>,
+        pub created_at: chrono::NaiveDateTime,
     }
 
     #[derive(Insertable, Debug, Clone, Deserialize)]
@@ -31,6 +32,7 @@ pub mod posts {
         #[serde(default = "default_published")]
         pub published: Option<bool>,
         pub author_id: Option<i32>,
+        pub created_at: chrono::NaiveDateTime,
     }
 
     fn default_published() -> Option<bool> {
@@ -90,6 +92,7 @@ pub mod posts {
                 body,
                 published,
                 author_id,
+                created_at: chrono::Local::now().naive_local(),
             }
         }
     }
