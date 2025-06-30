@@ -106,7 +106,7 @@ The code is also very descriptive, with comments and documentation throughout. Y
 
 This project is a template for building full stack web applications in Rust. It provides a solid foundation for creating web applications with user authentication, database interactions, and a responsive frontend. You can use it as a starting point for your own projects, customizing the features and functionality to suit your needs.
 
-It's just supposed to be a starting point, so you can add your own features and functionality as needed. The project is designed to be modular and extensible, allowing you to easily integrate additional libraries and frameworks as required.
+It's just supposed to be a starting point, so you can add your own features and functionality as needed. The project is designed to be modular and extensible, allowing you to easily integrate additional libraries and frameworks as required. You could even add react or vue.js or svelte if you really want to, but I don't see the point of doing that.
 
 ## License
 
