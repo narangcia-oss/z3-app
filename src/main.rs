@@ -99,6 +99,32 @@ async fn root(Extension(session): Extension<AuthSession>) -> Html<String> {
     }
 }
 
+/// Handles GET requests to the `/posts` route by rendering a list of posts.
+///
+/// Returns multiple rendered `PostTemplate` as one HTML response.
+///
+/// # Examples
+/// /// ```
+/// // In an Axum application, this handler can be used as follows:
+/// let app = axum::Router::new().route("/posts", get(post_get));
+/// ```
+async fn post_get(Extension(session): Extension<AuthSession>) -> Result<Html<String>, StatusCode> {
+    // Check if user is authenticated
+    if session.user.is_none() {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+
+    let posts: Vec<Post> = Post::get_published().await;
+    let mut html = String::new();
+
+    for post in posts {
+        let post_template: PostTemplate = PostTemplate { post };
+        html.push_str(&post_template.render().unwrap());
+    }
+
+    Ok(Html(html))
+}
+
 #[derive(Debug, Deserialize)]
 pub struct PostForm {
     pub title: String,
@@ -155,36 +181,17 @@ async fn post_post(
     }
 }
 
-/// Handles GET requests to the `/posts` route by rendering a list of posts.
-///
-/// Returns multiple rendered `PostTemplate` as one HTML response.
-///
-/// # Examples
-/// /// ```
-/// // In an Axum application, this handler can be used as follows:
-/// let app = axum::Router::new().route("/posts", get(post_get));
-/// ```
-async fn post_get(Extension(session): Extension<AuthSession>) -> Result<Html<String>, StatusCode> {
-    // Check if user is authenticated
-    if session.user.is_none() {
-        return Err(StatusCode::UNAUTHORIZED);
-    }
-
-    let posts: Vec<Post> = Post::get_published().await;
-    let mut html = String::new();
-
-    for post in posts {
-        let post_template: PostTemplate = PostTemplate { post };
-        html.push_str(&post_template.render().unwrap());
-    }
-
-    Ok(Html(html))
-}
-
 /// Renders the signup form
 async fn signup_form() -> Html<String> {
     let template = SignupFormTemplate {};
     Html(template.render().unwrap())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SignupForm {
+    pub username: String,
+    pub password: String,
+    pub email: String,
 }
 
 /// Handles signup POST, creates a new user
@@ -261,11 +268,4 @@ async fn login_post(
 async fn signout_post(Extension(mut session): Extension<AuthSession>) -> Redirect {
     let _ = session.logout().await;
     Redirect::to("/")
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SignupForm {
-    pub username: String,
-    pub password: String,
-    pub email: String, // Make email required
 }
