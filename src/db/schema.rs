@@ -1,38 +1,12 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
-    posts (id) {
-        id -> Int4,
-        author_id -> Nullable<Int4>,
-        created_at -> Timestamp,
-        title -> Text,
-        body -> Text,
-        published -> Bool,
-    }
-}
-
-diesel::table! {
-    users (id) {
-        id -> Int4,
-        username -> Text,
-
-        created_at -> Timestamp,
-        accounts -> Integer,
-        sessions -> Nullable<Integer>,
-    }
-}
-
-diesel::table! {
     accounts (id) {
-        id -> Integer,
-        user_id -> Integer,
-        type_ -> Text, // Use this field as an enum in Rust
-
-        // This is for usual accounts
+        id -> Int4,
+        user_id -> Int4,
+        type_ -> Text,
         email -> Nullable<Text>,
         password -> Nullable<Text>,
-        // This is for OAuth accounts
-
         provider -> Nullable<Text>,
         provider_account_id -> Nullable<Text>,
         refresh_token -> Nullable<Text>,
@@ -47,11 +21,30 @@ diesel::table! {
 }
 
 diesel::table! {
+    posts (id) {
+        id -> Int4,
+        author_id -> Nullable<Int4>,
+        created_at -> Timestamp,
+        title -> Text,
+        body -> Text,
+        published -> Bool,
+    }
+}
+
+diesel::table! {
     sessions (id) {
         id -> Text,
         session_token -> Text,
         user_id -> Int4,
         expires -> Timestamp,
+    }
+}
+
+diesel::table! {
+    users (id) {
+        id -> Int4,
+        username -> Text,
+        created_at -> Timestamp,
     }
 }
 
@@ -63,14 +56,14 @@ diesel::table! {
     }
 }
 
-// Relations
 diesel::joinable!(accounts -> users (user_id));
+diesel::joinable!(posts -> users (author_id));
 diesel::joinable!(sessions -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
-    posts,
-    users,
     accounts,
+    posts,
     sessions,
+    users,
     verification_tokens,
 );
