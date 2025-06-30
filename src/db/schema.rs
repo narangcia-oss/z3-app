@@ -17,7 +17,8 @@ diesel::table! {
         username -> Text,
 
         created_at -> Timestamp,
-        accounts -> Integer
+        accounts -> Integer,
+        sessions -> Nullable<Integer>,
     }
 }
 
@@ -25,7 +26,13 @@ diesel::table! {
     accounts (id) {
         id -> Integer,
         user_id -> Integer,
-        type_ -> Text, // Utiliser ce champ comme enum côté Rust
+        type_ -> Text, // Use this field as an enum in Rust
+
+        // This is for usual accounts
+        email -> Nullable<Text>,
+        password -> Nullable<Text>,
+        // This is for OAuth accounts
+
         provider -> Nullable<Text>,
         provider_account_id -> Nullable<Text>,
         refresh_token -> Nullable<Text>,
@@ -43,7 +50,7 @@ diesel::table! {
     sessions (id) {
         id -> Text,
         session_token -> Text,
-        user_id -> Text,
+        user_id -> Int4,
         expires -> Timestamp,
     }
 }
@@ -58,6 +65,7 @@ diesel::table! {
 
 // Relations
 diesel::joinable!(accounts -> users (user_id));
+diesel::joinable!(sessions -> users (user_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
     posts,
