@@ -1,28 +1,33 @@
 use askama::Template;
-use axum::http::StatusCode;
 use axum::{
-    Extension,
-    extract::State,
+    Extension, Router,
+    extract::{Form, State},
+    http::StatusCode,
     response::{Html, Redirect},
+    routing::{get, post},
 };
-use axum::{Router, extract::Form, routing::get, routing::post};
-use axum_login::AuthnBackend;
-use axum_login::tower_sessions::MemoryStore;
+use axum_login::{
+    AuthManagerLayerBuilder, AuthnBackend,
+    tower_sessions::{MemoryStore, SessionManagerLayer},
+};
 use diesel::prelude::*;
 use password_auth::generate_hash;
 use serde::Deserialize;
 use std::net::SocketAddr;
-use tower_http::services::ServeDir;
-use tower_http::compression::CompressionLayer;
-use z3_app::db::db_utils;
-use z3_app::db::models::accounts::Account;
-use z3_app::db::models::posts::{NewPost, Post};
-use z3_app::db::models::users::{AuthSession, Backend, Credentials, User};
-use z3_app::templates::templates_defs::{
-    LoginFormTemplate, MainTemplate, PostTemplate, SignupFormTemplate, WelcomeTemplate,
+use tower_http::{compression::CompressionLayer, services::ServeDir};
+use z3_app::{
+    db::{
+        db_utils,
+        models::{
+            accounts::Account,
+            posts::{NewPost, Post},
+            users::{AuthSession, Backend, Credentials, User},
+        },
+    },
+    templates::templates_defs::{
+        LoginFormTemplate, MainTemplate, PostTemplate, SignupFormTemplate, WelcomeTemplate,
+    },
 };
-
-use axum_login::{AuthManagerLayerBuilder, tower_sessions::SessionManagerLayer};
 
 /// Launches the Axum web server with HTML template rendering and static file serving.
 ///
