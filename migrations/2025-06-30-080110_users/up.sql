@@ -11,7 +11,7 @@ CREATE TABLE "users"
 CREATE TABLE "posts"
 (
 	"id" SERIAL PRIMARY KEY,
-	"author_id" INT4 NOT NULL,
+	"author_id" INT4,
 	"created_at" TIMESTAMP NOT NULL,
 	"title" TEXT NOT NULL,
 	"body" TEXT NOT NULL,

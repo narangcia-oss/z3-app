@@ -97,6 +97,7 @@ async fn post_post(Form(input): Form<NewPost>) -> Result<Html<String>, StatusCod
         &mut db_utils::establish_connection(),
         &input.title,
         &input.body,
+        &input.author_id,
     ) {
         Some(post) => {
             let post_template = PostTemplate { post };

@@ -20,6 +20,7 @@ pub mod posts {
         pub title: String,
         pub body: String,
         pub published: bool,
+        pub author_id: i32,
     }
 
     #[derive(Insertable, Debug, Clone, Deserialize)]
@@ -29,6 +30,7 @@ pub mod posts {
         pub body: String,
         #[serde(default = "default_published")]
         pub published: Option<bool>,
+        pub author_id: Option<i32>,
     }
 
     fn default_published() -> Option<bool> {
@@ -50,8 +52,14 @@ pub mod posts {
             results
         }
 
-        pub fn create(conn: &mut diesel::PgConnection, title: &str, body: &str) -> Option<Post> {
-            let new_post: NewPost = NewPost::new(title.to_string(), body.to_string(), Some(true));
+        pub fn create(
+            conn: &mut diesel::PgConnection,
+            title: &str,
+            body: &str,
+            author_id: &Option<i32>,
+        ) -> Option<Post> {
+            let new_post: NewPost =
+                NewPost::new(title.to_string(), body.to_string(), Some(true), *author_id);
             println!("Creating post: {:?}", new_post);
             let result = diesel::insert_into(crate::db::schema::posts::table)
                 .values(&new_post)
@@ -71,11 +79,17 @@ pub mod posts {
     }
 
     impl NewPost {
-        pub fn new(title: String, body: String, published: Option<bool>) -> Self {
+        pub fn new(
+            title: String,
+            body: String,
+            published: Option<bool>,
+            author_id: Option<i32>,
+        ) -> Self {
             NewPost {
                 title,
                 body,
                 published,
+                author_id,
             }
         }
     }
@@ -85,10 +99,10 @@ pub mod users {
     use crate::db::schema::users as users_table;
     use async_trait::async_trait;
     use axum_login::{AuthUser, AuthnBackend, UserId};
+    use diesel::prelude::*;
     use password_auth::verify_password;
     use serde::{Deserialize, Serialize};
     use tokio::task;
-    use diesel::prelude::*;
 
     #[derive(Queryable, Selectable, Clone, Serialize, Deserialize)]
     #[diesel(table_name = users_table)]
