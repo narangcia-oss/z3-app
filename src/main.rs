@@ -17,6 +17,12 @@ use z3_app::db::models::{
 };
 use z3_app::templates::templates_defs::{MainTemplate, PostTemplate};
 
+use axum_login::{
+    AuthManagerLayerBuilder, login_required,
+    tower_sessions::{ExpiredDeletion, Expiry, SessionManagerLayer},
+    tracing::info,
+};
+
 /// Launches the Axum web server with HTML template rendering and static file serving.
 ///
 /// Sets up application routes for the root path (`/`), a test page (`/test`), and static file serving at `/static`.
@@ -32,7 +38,8 @@ use z3_app::templates::templates_defs::{MainTemplate, PostTemplate};
 async fn main() {
     let backend = Backend::new();
     let store = MemoryStore::default();
-    let auth_layer = AuthManagerLayer::new(backend.clone(), store, "some-secret-key");
+    let session_layer = SessionManagerLayer::new(store);
+    let auth_layer = AuthManagerLayerBuilder::new(backend.clone(), session_layer);
     let app = Router::new()
         .route("/", get(root))
         .route("/posts", get(post_get))
@@ -41,7 +48,7 @@ async fn main() {
         .route("/login", get(login_form).post(login_post))
         .route("/signout", post(signout_post))
         .nest_service("/static", ServeDir::new("static"))
-        .layer(auth_layer)
+        .layer(auth_layer.build())
         .with_state(backend);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
@@ -137,9 +144,7 @@ async fn signup_form() -> Html<String> {
 
 /// Handles signup POST, creates a new user
 #[axum::debug_handler]
-async fn signup_post(
-    Form(input): Form<SignupForm>,
-) -> Result<Redirect, StatusCode> {
+async fn signup_post(Form(input): Form<SignupForm>) -> Result<Redirect, StatusCode> {
     let mut conn = db_utils::establish_connection();
     let hashed = generate_hash(&input.password);
     let new_user = (
