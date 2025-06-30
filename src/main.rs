@@ -13,6 +13,7 @@ use password_auth::generate_hash;
 use serde::Deserialize;
 use std::net::SocketAddr;
 use tower_http::services::ServeDir;
+use tower_http::compression::CompressionLayer;
 use z3_app::db::db_utils;
 use z3_app::db::models::accounts::Account;
 use z3_app::db::models::posts::{NewPost, Post};
@@ -48,6 +49,7 @@ async fn main() {
         .route("/login", get(login_form).post(login_post))
         .route("/signout", post(signout_post))
         .nest_service("/static", ServeDir::new("static"))
+        .layer(CompressionLayer::new())
         .layer(auth_layer.build())
         .with_state(backend);
 
