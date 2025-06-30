@@ -3,6 +3,8 @@
 diesel::table! {
     posts (id) {
         id -> Int4,
+        author_id -> Int4,
+        created_at -> Timestamp,
         title -> Text,
         body -> Text,
         published -> Bool,
