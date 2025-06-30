@@ -24,7 +24,7 @@ use z3_app::{
             users::{AuthSession, Backend, Credentials, User},
         },
     },
-    templates::templates_defs::{
+    templates::{
         ErrorMessageTemplate, LoginFormTemplate, MainTemplate, PostTemplate, RedirectTemplate,
         SignupFormTemplate, SignupSuccessTemplate, UserHeaderTemplate, WelcomeTemplate,
     },
