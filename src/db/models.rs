@@ -1,7 +1,13 @@
-// After changing schema.rs, you need to run the migration command to apply changes.
-// diesel migration generate --diff-schema <migration_name>
-// diesel migration run
-// Then i recommend properly making your models here
+/// After changing schema.rs, you need to run the migration command to apply changes.
+///
+/// You can use the `diesel` CLI to manage migrations in your Rust project.
+///
+/// To generate a new migration using the `diesel` CLI, run the following commands:
+/// ```bash
+/// diesel migration generate --diff-schema <migration_name>
+/// diesel migration run
+/// ```
+/// Then i recommend properly making your models here
 
 use diesel::prelude::*;
 use serde::Deserialize;
