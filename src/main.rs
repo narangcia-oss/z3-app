@@ -19,8 +19,7 @@ use z3_app::templates::templates_defs::{MainTemplate, PostTemplate};
 
 use axum_login::{
     AuthManagerLayerBuilder, login_required,
-    tower_sessions::{ExpiredDeletion, Expiry, SessionManagerLayer},
-    tracing::info,
+    tower_sessions::SessionManagerLayer,
 };
 
 /// Launches the Axum web server with HTML template rendering and static file serving.
@@ -191,7 +190,7 @@ async fn login_post(
 
 /// Handles signout POST, ends the session
 async fn signout_post(Extension(mut session): Extension<AuthSession>) -> Redirect {
-    session.logout().await;
+    let _ = session.logout().await;
     Redirect::to("/")
 }
 
