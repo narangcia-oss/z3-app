@@ -98,6 +98,7 @@ async fn post_post(Form(input): Form<NewPost>) -> Result<Html<String>, StatusCod
         &input.title,
         &input.body,
         &input.author_id,
+        input.created_at,
     ) {
         Some(post) => {
             let post_template = PostTemplate { post };

@@ -12,6 +12,8 @@ pub mod posts {
     use diesel::prelude::*;
     use serde::Deserialize;
 
+    use crate::db::schema::posts::created_at;
+
     #[derive(Queryable, Selectable, Debug, Clone, Deserialize)]
     #[diesel(table_name = crate::db::schema::posts)]
     #[diesel(check_for_backend(diesel::pg::Pg))]
@@ -59,9 +61,10 @@ pub mod posts {
             title: &str,
             body: &str,
             author_id: &Option<i32>,
+            created_at_value: chrono::NaiveDateTime,
         ) -> Option<Post> {
             let new_post: NewPost =
-                NewPost::new(title.to_string(), body.to_string(), Some(true), *author_id);
+                NewPost::new(title.to_string(), body.to_string(), Some(true), *author_id, created_at_value);
             println!("Creating post: {:?}", new_post);
             let result = diesel::insert_into(crate::db::schema::posts::table)
                 .values(&new_post)
@@ -86,13 +89,14 @@ pub mod posts {
             body: String,
             published: Option<bool>,
             author_id: Option<i32>,
+            created_at_value: chrono::NaiveDateTime,
         ) -> Self {
             NewPost {
                 title,
                 body,
                 published,
                 author_id,
-                created_at: chrono::Local::now().naive_local(),
+                created_at: created_at_value,
             }
         }
     }
