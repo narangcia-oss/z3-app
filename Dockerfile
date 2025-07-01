@@ -31,7 +31,7 @@ COPY --from=node-builder /app/static/tailwind.css ./static/tailwind.css
 COPY --from=node-builder /app/static/htmx.min.js ./static/htmx.min.js
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates \
+  && apt-get install -y --no-install-recommends ca-certificates libpq5 \
   && rm -rf /var/lib/apt/lists/*
 
 USER appuser
