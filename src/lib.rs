@@ -1,2 +1,2 @@
-pub mod templates;
 pub mod db;
+pub mod templates;

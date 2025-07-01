@@ -86,7 +86,8 @@ pub struct Credentials {
 
 #[derive(Clone)]
 pub struct Backend {
-    pub db: std::sync::Arc<diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::PgConnection>>>,
+    pub db:
+        std::sync::Arc<diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::PgConnection>>>,
 }
 
 impl Backend {

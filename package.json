@@ -1,6 +1,6 @@
 {
-  "name": "cosy-list",
-  "version": "1.0.0",
+  "name": "z3-app",
+  "version": "0.1.0",
   "description": "",
   "private": true,
   "devDependencies": {
