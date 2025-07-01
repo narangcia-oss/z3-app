@@ -31,13 +31,14 @@ fn default_published() -> Option<bool> {
 impl Post {
     pub async fn get_published() -> Vec<Post> {
         use crate::db::schema::posts::dsl::*;
-        let connection: &mut diesel::PgConnection =
-            &mut crate::db::db_utils::establish_connection();
+        let mut connection = crate::db::db_utils::establish_pool()
+            .get()
+            .expect("Failed to get DB connection from pool");
         let results: Vec<Post> = posts
             .filter(diesel::ExpressionMethods::eq(published, true))
             .limit(5)
             .select(Post::as_select())
-            .load(connection)
+            .load(&mut connection)
             .expect("Error loading posts");
         println!("Displaying {} posts", results.len());
         results

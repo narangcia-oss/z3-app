@@ -10,7 +10,6 @@ use axum_login::{
     AuthManagerLayerBuilder, AuthnBackend,
     tower_sessions::{MemoryStore, SessionManagerLayer},
 };
-use diesel::prelude::*;
 use password_auth::generate_hash;
 use serde::Deserialize;
 use std::net::SocketAddr;
@@ -165,8 +164,10 @@ async fn post_post(
         created_at: chrono::Utc::now().naive_utc(),
     };
 
+    let pool = db_utils::establish_pool();
+    let mut conn = pool.get().unwrap();
     match Post::create(
-        &mut db_utils::establish_connection(),
+        &mut conn,
         &new_post.title,
         &new_post.body,
         &new_post.author_id,
@@ -197,7 +198,8 @@ pub struct SignupForm {
 /// Handles signup POST, creates a new user
 #[axum::debug_handler]
 async fn signup_post(Form(input): Form<SignupForm>) -> Result<Html<String>, StatusCode> {
-    let mut conn: PgConnection = db_utils::establish_connection();
+    let pool = db_utils::establish_pool();
+    let mut conn = pool.get().unwrap();
     let hashed: String = generate_hash(&input.password);
 
     // Create user first

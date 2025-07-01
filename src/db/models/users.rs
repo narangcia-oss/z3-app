@@ -86,14 +86,14 @@ pub struct Credentials {
 
 #[derive(Clone)]
 pub struct Backend {
-    pub db: std::sync::Arc<tokio::sync::Mutex<diesel::PgConnection>>,
+    pub db: std::sync::Arc<diesel::r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::PgConnection>>>,
 }
 
 impl Backend {
     pub fn new() -> Self {
-        let db = crate::db::db_utils::establish_connection();
+        let db = crate::db::db_utils::establish_pool();
         Self {
-            db: std::sync::Arc::new(tokio::sync::Mutex::new(db)),
+            db: std::sync::Arc::new(db),
         }
     }
 }
@@ -127,7 +127,8 @@ impl AuthnBackend for Backend {
         let password = creds.password;
 
         let user_and_account: Option<(User, Account)> = task::spawn_blocking(move || {
-            let mut conn = db.blocking_lock();
+            let pool = db;
+            let mut conn = pool.get().ok()?;
 
             // Join users with their email/password accounts
             users_table::table
@@ -139,7 +140,7 @@ impl AuthnBackend for Backend {
                 .filter(crate::db::schema::accounts::type_.eq("email"))
                 .filter(crate::db::schema::accounts::password.is_not_null())
                 .select((User::as_select(), Account::as_select()))
-                .first::<(User, Account)>(&mut *conn)
+                .first::<(User, Account)>(&mut conn)
                 .ok()
         })
         .await?;
@@ -158,13 +159,14 @@ impl AuthnBackend for Backend {
 
     async fn get_user(&self, user_id: &UserId<Self>) -> Result<Option<Self::User>, Self::Error> {
         let db = self.db.clone();
-        let id = *user_id;
+        let user_id = *user_id; // Copy the value so it can be moved into the closure
         let user = task::spawn_blocking(move || {
-            let mut conn = db.blocking_lock();
+            let pool = db;
+            let mut conn = pool.get().ok()?;
             users_table::table
-                .filter(users_table::id.eq(id))
+                .filter(users_table::id.eq(user_id))
                 .select(User::as_select())
-                .first::<User>(&mut *conn)
+                .first::<User>(&mut conn)
                 .ok()
         })
         .await?;
