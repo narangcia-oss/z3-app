@@ -58,18 +58,18 @@ impl Post {
             *author_id,
             created_at_value,
         );
-        println!("Creating post: {:?}", new_post);
+        println!("Creating post: {new_post:?}");
         let result = diesel::insert_into(crate::db::schema::posts::table)
             .values(&new_post)
             .returning(Post::as_returning())
             .get_result(conn);
         match result {
             Ok(post) => {
-                println!("Inserted post: {:?}", post);
+                println!("Inserted post: {post:?}");
                 Some(post)
             }
             Err(e) => {
-                println!("Diesel insert error: {}", e);
+                println!("Diesel insert error: {e}");
                 None
             }
         }

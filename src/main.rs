@@ -59,11 +59,11 @@ async fn main() {
         .with_state(backend);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    println!("Listening on http://{}", addr);
+    println!("Listening on http://{addr}");
 
     let listener: tokio::net::TcpListener = tokio::net::TcpListener::bind(addr).await.unwrap();
     if let Err(e) = axum::serve(listener, app).await {
-        eprintln!("Server error: {}", e);
+        eprintln!("Server error: {e}");
         std::process::exit(1);
     }
 }
@@ -142,7 +142,7 @@ async fn post_post(
     Extension(session): Extension<AuthSession>,
     Form(input): Form<PostForm>,
 ) -> Result<Html<String>, StatusCode> {
-    println!("Received post input: {:?}", input);
+    println!("Received post input: {input:?}");
 
     if input.title.is_empty() || input.body.is_empty() {
         return Err(StatusCode::BAD_REQUEST);
@@ -217,7 +217,7 @@ async fn signup_post(Form(input): Form<SignupForm>) -> Result<Html<String>, Stat
                     Ok(Html(success_template.render().unwrap()))
                 }
                 Err(e) => {
-                    println!("Failed to create account: {}", e);
+                    println!("Failed to create account: {e}");
                     let error_template = ErrorMessageTemplate {
                         message: "Failed to create account. Email might already be in use."
                             .to_string(),
@@ -227,7 +227,7 @@ async fn signup_post(Form(input): Form<SignupForm>) -> Result<Html<String>, Stat
             }
         }
         Err(e) => {
-            println!("Failed to create user: {}", e);
+            println!("Failed to create user: {e}");
             let error_template = ErrorMessageTemplate {
                 message: "Failed to create user. Username might already be taken.".to_string(),
             };
