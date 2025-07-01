@@ -1,5 +1,5 @@
 # Stage 1: Build Rust
-FROM rust:1.88.1 AS rust-builder
+FROM rust:1.88 AS rust-builder
 WORKDIR /app
 
 COPY Cargo.toml Cargo.lock ./
