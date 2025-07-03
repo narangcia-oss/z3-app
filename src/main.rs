@@ -58,7 +58,7 @@ async fn main() {
         .layer(auth_layer.build())
         .with_state(backend);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     println!("Listening on http://{addr}");
 
     let listener: tokio::net::TcpListener = tokio::net::TcpListener::bind(addr).await.unwrap();
